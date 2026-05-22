@@ -71,6 +71,7 @@ src/
       model-info/route.ts- Model metadata endpoint
 scripts/
   ollama_api.py        - Python bridge to ollamafreeapi
+  requirements.txt     - Python dependencies (pip install -r)
 ```
 
 ## Notes
