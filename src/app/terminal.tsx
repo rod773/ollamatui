@@ -8,7 +8,7 @@ type Line = {
   isSystem?: boolean;
 };
 
-const DEFAULT_MODEL = "llama3.2:3b";
+const DEFAULT_MODEL = "llama3:latest";
 
 export default function Terminal() {
   const [lines, setLines] = useState<Line[]>([
@@ -19,6 +19,7 @@ export default function Terminal() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [model, setModel] = useState(DEFAULT_MODEL);
+  const [models, setModels] = useState<string[]>([]);
   const setPersistentModel = useCallback((m: string) => {
     setModel(m);
     localStorage.setItem("ollamatui_model", m);
@@ -26,9 +27,12 @@ export default function Terminal() {
 
   useEffect(() => {
     const saved = localStorage.getItem("ollamatui_model");
-    if (saved) setModel(saved);
-  }, []);
-  const [models, setModels] = useState<string[]>([]);
+    if (saved && models.length > 0 && models.includes(saved)) setModel(saved);
+    else if (saved && models.length > 0) {
+      localStorage.removeItem("ollamatui_model");
+      setModel(DEFAULT_MODEL);
+    }
+  }, [models]);
   const [streaming, setStreaming] = useState<AbortController | null>(null);
   const [selectingModel, setSelectingModel] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);

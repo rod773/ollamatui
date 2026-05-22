@@ -1,8 +1,55 @@
 import json
+import random
 import sys
+from ollama import Client as OllamaClient
 from ollamafreeapi import OllamaFreeAPI
 
 client = OllamaFreeAPI()
+
+
+def _all_servers():
+    seen = set()
+    for models in client._models_data.values():
+        for m in models:
+            url = m.get("ip_port") if isinstance(m, dict) else None
+            if url:
+                seen.add(url)
+    return list(seen)
+
+
+def _fallback_chat(prompt, model, **kwargs):
+    servers = _all_servers()
+    random.shuffle(servers)
+    request = client.generate_api_request(model, prompt, **kwargs)
+    last_error = None
+    for url in servers:
+        try:
+            oc = OllamaClient(host=url)
+            return oc.generate(**request)["response"]
+        except Exception as e:
+            last_error = e
+    raise RuntimeError(
+        f"All {len(servers)} servers failed for model '{model}'. Last error: {last_error}"
+    )
+
+
+def _fallback_stream_chat(prompt, model, **kwargs):
+    servers = _all_servers()
+    random.shuffle(servers)
+    request = client.generate_api_request(model, prompt, **kwargs)
+    request["stream"] = True
+    last_error = None
+    for url in servers:
+        try:
+            oc = OllamaClient(host=url)
+            for chunk in oc.generate(**request):
+                yield chunk["response"]
+            return
+        except Exception as e:
+            last_error = e
+    raise RuntimeError(
+        f"All {len(servers)} servers failed for model '{model}'. Last error: {last_error}"
+    )
 
 
 def respond(data):
@@ -36,7 +83,17 @@ def handle_chat(args):
     try:
         response = client.chat(prompt, model, **kwargs)
         respond({"type": "response", "data": response})
-    except (ValueError, RuntimeError) as e:
+    except RuntimeError as e:
+        if "No servers available" in str(e):
+            try:
+                response = _fallback_chat(prompt, model, **kwargs)
+                respond({"type": "response", "data": response})
+                return
+            except RuntimeError as e2:
+                respond({"type": "error", "data": str(e2)})
+                return
+        respond({"type": "error", "data": str(e)})
+    except ValueError as e:
         respond({"type": "error", "data": str(e)})
 
 
@@ -48,7 +105,18 @@ def handle_stream_chat(args):
         for chunk in client.stream_chat(prompt, model, **kwargs):
             respond({"type": "chunk", "data": chunk})
         respond({"type": "done", "data": None})
-    except (ValueError, RuntimeError) as e:
+    except RuntimeError as e:
+        if "No servers available" in str(e):
+            try:
+                for chunk in _fallback_stream_chat(prompt, model, **kwargs):
+                    respond({"type": "chunk", "data": chunk})
+                respond({"type": "done", "data": None})
+                return
+            except RuntimeError as e2:
+                respond({"type": "error", "data": str(e2)})
+                return
+        respond({"type": "error", "data": str(e)})
+    except ValueError as e:
         respond({"type": "error", "data": str(e)})
 
 
