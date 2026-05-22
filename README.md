@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# OllamaTUI
+
+A terminal-style web UI for chatting with free Ollama models via the [`ollamafreeapi`](https://pypi.org/project/ollamafreeapi/) library.
+
+## Architecture
+
+```
+Browser (Next.js Client)
+    |  fetch() to /api/chat/stream
+    v
+Next.js API Route (src/app/api/chat/stream/route.ts)
+    |  spawns python scripts/ollama_api.py
+    v
+Python (scripts/ollama_api.py)
+    |  calls OllamaFreeAPI.chat() / .stream_chat()
+    v
+ollamafreeapi library (site-packages)
+    |  looks up model servers in JSON files
+    v
+Remote Ollama server (public IP:11434)
+```
+
+The frontend is a Next.js 16 app. Chat requests are forwarded to a Python script that calls the `ollamafreeapi` library, which maintains a list of public Ollama server IPs mapped to model names in JSON files under `ollama_json/`.
+
+## Commands
+
+| Command | Description |
+|---|---|
+| `/help` | Show help |
+| `/models` | List all available models |
+| `/models <number>` | Switch to model by list index |
+| `/models <name>` | Switch to model by name |
+| `/model <name>` | Switch active model |
+| `/info <model>` | Show model metadata |
+| `/clear` | Clear terminal |
+| `/stop` | Stop streaming response |
+
+**Esc** also stops streaming.
+
+Model selection persists across page reloads via `localStorage`.
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
-npm run dev
-# or
+yarn install
 yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Requires Python 3.x with `ollamafreeapi` installed:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pip install ollamafreeapi
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Open [http://localhost:3000](http://localhost:3000).
 
-## Learn More
+## Project Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+  app/
+    page.tsx          - Entry point
+    terminal.tsx      - Terminal UI, command parsing, chat
+    layout.tsx        - Root layout
+    globals.css       - Tailwind + dark theme styles
+    api/
+      chat/
+        stream/route.ts  - Streaming chat endpoint
+        route.ts         - Non-streaming chat endpoint
+      models/route.ts    - List models endpoint
+      model-info/route.ts- Model metadata endpoint
+scripts/
+  ollama_api.py        - Python bridge to ollamafreeapi
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Notes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Model data is sourced from scraped public Ollama servers in `ollamafreeapi`. The `qwen.json` file was mis-populated with DeepSeek-R1 entries — no Qwen models are currently available.
+- To add a custom model/server, edit the JSON files under the `ollamafreeapi` site-packages `ollama_json/` directory.

@@ -1,0 +1,17 @@
+Create a web-based terminal interface called "OllamaTUI" that lets users chat with free Ollama AI models through a browser. The UI should look and feel like a terminal — dark background, green monospace text, a scrolling chat area, and an input prompt at the bottom.
+
+Technical stack:
+- Frontend: Next.js 16 (App Router) with Tailwind CSS
+- Backend: Python script that calls the `ollamafreeapi` library, which maintains a list of public Ollama server IPs mapped to model names in JSON files
+- Communication: Next.js API routes spawn the Python script and pipe JSON over stdin/stdout
+
+Features:
+- Terminal-style chat interface with streaming responses
+- Slash commands: /help, /models (list + select by number), /model <name>, /info <model>, /clear, /stop
+- Esc key to abort streaming
+- Model selection persists via localStorage
+- Header bar showing current model name and thinking indicator
+- Model list shows numbered entries, bare number input after /models selects that model
+- Default model: llama3.2:3b
+
+The Python bridge (ollama_api.py) handles: list_families, list_models, model_info, chat, stream_chat — all via JSON lines protocol over stdin/stdout.
